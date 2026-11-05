@@ -31,6 +31,7 @@
 - **OpenAI 收购 Pierre、Meta 收购 Conductor，AI 编程并购同日落地** — OpenAI 官方 RSS 于美东 11 月 4 日 09:30 公布收购开发工具公司 Pierre（Codex 已在使用其 Trees 与 Diffs 开源库）；Conductor 创始人当天宣布公司并入 Meta，云端服务 13 日转只读、20 日关闭
 - **OpenAI 用未发布的安全模型挖出 948 个 Linux 内核漏洞** — 花 120 万美元、平均每个漏洞 1279 美元（对照之下人类顶尖研究员一年约 20 个），官方博客《A thousand fewer paths to root》发布于美东 11 月 4 日 03:00，属前一篇漏收的归日补录
 - **腾讯混元 Hy4 与月之暗面 Kimi K3.1 Pro 同日推进开放权重** — Hy4 参数 770B、近期开源权重，多数基准仍低于 GPT6.1 Sol 与 Claude Opus 5.5；Kimi K3.1 Pro 全量放出 3 万亿参数、100 万词元上下文的完整权重，Artificial Analysis 智能指数全球第 4、开源第一
+
 ## 归档
 
 | 年份 | 篇数 | 覆盖日期 | 最新一篇 |
