@@ -73,3 +73,14 @@ lly_ai_news 的定时任务提示词存档。
   **体积**：12-15 由 12136 → **12314** 字符（sha256 `3ac21bc809cf9cd31ed5db7c6dd6f7f8561a7b6eb50653e120571e890ef44c30`）。
   **配套**：11-07 上线的「记忆沉淀只追加不压缩」已在 11-08 实战验证 —— 两个台账 topic 当天**只增长、没有被压缩**（`tencent-docs-ai-daily` 27,723 → 30,250；`lly-ai-news-lane-log` 24,111 → 26,670），昨天那种「压缩 + 重试」4~5 轮 × 30~49 万上下文的开销消失。
   **未改**：排期、`agent_name`（`Mavis ` 带尾随空格）、model、project、`session.mode=new`、task_id。
+
+- **2026-11-08 19:15**：两条日更任务的**模型由 `MiniMax-M3.1-Flash` 换成 `MiniMax-M3`**（用户要求「改为用 m3 模型跑」），**task_id 因重建而变更**。
+  **动因**：`cron_update` 的参数表里**没有 `model` 字段**（schema `additionalProperties:false`，直传报 `/model: Unexpected property`），只有 `cron_create` 有 ⇒ **改模型只能删建，task_id 必然变**。
+  **本日新踩的坑（5 枚一次性探针实测，代价约 1 小时）**：
+  ① **agent 绑定比模型更致命**：`agent_name` 传字面量 `"Mavis"` 会被落库成 `"Mavis"`，那是**另一个 agent（Leader，team_mode）**，它跑 cron **触发瞬间必挂** —— `CRON_EXECUTION_FAILED` / `[1406010011]: explicit model is not registered`（38 ms 内失败、session_id 已分配但对话没跑）。实测「`"Mavis"` + 旧模型 M3.1-Flash」同样失败 ⇒ **与模型无关，是 agent 绑定错**；而「`agent_name="me"` + `MiniMax-M3`」实测 **status=1 成功**。
+  ② **`"me"` 解析的是「调用方会话自己的 agent」**：在 MCode 会话里写 `"me"` → 落库 `"Mavis "`（带尾随空格，与旧任务同款）；在 General 子会话里写 `"me"` → 落库 `"General"`。**尾随空格无法用字面量写出（参数层会 trim，`"Mavis\u0020"` 也一样），只有 `"me"` 能命中 `"Mavis "`。**
+  ③ **一个会话的 `cron_create` 有配额上限**：错误码 `1400010901`「当前对话已经存在定时任务，无法创建更多」——**删除已有任务后仍然被拒**（按创建历史计数），要新建就得**换一个对话**。
+  **变更**：旧 task_id `455378550493617`（12-15）、`455362580808236`（12:00）已删除；新 task_id ＝ 12-15 **`461136702481672`**（已启用，下一次 2026-11-09 12:15 CST）、12:00 **`461137930630223`**（保持暂停，等用户恢复）。两者 `model=minimax/MiniMax-M3`、`agent=General`、`project=25872`、`session.mode=new`、`timezone=Asia/Shanghai`。
+  **提示词正文一字未改**：两条新任务的 prompt 与本目录存档、与线上旧任务**逐字节一致**（12-15 12314 字符 sha256 `3ac21bc809cf9cd31ed5db7c6dd6f7f8561a7b6eb50653e120571e890ef44c30`；12-00 12321 字符 sha256 `2828f88f6cebb3f37624bf515ac5e14e4210e40f46f546ed01dae1d779cdc686`），仅 model 与 task_id 变。
+  **与旧绑定的差异**：旧任务绑 `Mavis `（MCode persona），新任务绑 `General`（通用工作者 persona）。**能力无差异** —— 实测 General 下 `web_search` 正常出结果、`tencentdocs` 连接器 227 个工具齐备（含 `create_smartcanvas_by_mdx` / `get_content` / `manage.folder_list` / `manage.move_file` / `smartcanvas.edit`）、`mcode-tools` CLI 在 PATH、bash 抓 github/gov.cn 均 200；连接器与 web 工具是**环境级**而非 persona 级。要恢复 `Mavis ` 绑定，需在 **MCode 会话**里用 `agent_name="me"` 重建（本会话配额已耗尽，做不到）。
+  **注意**：删建后 run 历史挂在旧 task_id 上（`cron_read view=runs` 对新任务为空），跨 id 取历史要在旧 id 上查。
