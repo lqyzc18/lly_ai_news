@@ -17,6 +17,15 @@ lly_ai_news 的定时任务提示词存档。
 
 ## 变更记录
 
+- **2026-11-27 19:05**：两条日更提示词的**每日运行台账落点从 memory topic 改为仓库 `ops/lane_log/`**。
+  **动因（实测，非推测）**：cron lane 会话（`session.mode=new`，agent `General`）的工具面里**根本没有 `memory_topic_append`** —— 11-26 那轮 lane 自报「`tool_search` 查 memory/topic/台账 均无命中」，11-27 那轮自报「没有 `memory_topic_append` 工具，`/workspace` 下也未找到 AGENTS.md 或月度台账文件」。⇒ prompt 里那条「记忆沉淀」指令在 lane 环境**从来没被执行过**；11-26 是 lane 自主 fallback 写进了仓库（那轮出了 4 个 commit），11-27 没 fallback（只出 3 个 commit），**台账就断了**。
+  **改动**：两条 prompt 的「⚡ 省 token 纪律」第 4 条下的两个 bullet（「记忆沉淀最多 1 轮」「topic 满了就放弃」）整段替换为「**运行台账写进 GitHub 仓库 `ops/lane_log/`**」四条 —— 路径与 REST 通道、**只追加不改写不压缩**、回读校验、**写失败不重试且不影响交付**；并显式写明**不要尝试 `memory_topic_append` / `memory_topic_read` / `memory_topic_edit` / `memory_append`**。
+  **配套**：新增 `ops/lane_log/README.md`（台账写入规范：路径、REST 通道与 base64、条目格式、两条 lane 的差异、硬规则），台账条目的格式与写入细节以该文件为准。
+  **能力核实**：cron 沙箱**有** `GITHUB_TOKEN`（一次性探针实测 `env | grep -c GITHUB_TOKEN` = 1、带 token 头访问 `api.github.com` 返回 200），所以腾讯文档版 lane 也能写仓库 —— 但**能力存在 ≠ 会被使用**，不写进 prompt 它就不会用。探针任务已删除。
+  **体积与指纹**：12:15 版 12314 → **13285** 字符（sha256 `eaeeeab7aeb3bf8d…`）；18:00 版 13417 → **14388** 字符（sha256 `83411b38311ed3e8…`）。本目录两份存档与线上 prompt **逐字节一致**（18:00 那份此前是 **11-12 的旧备份**，本次一并纠正为线上现版）。
+  **未改**：排程（`15 12 * * *` / `0 18 * * *`）、timezone `Asia/Shanghai`、`agent_name` `General`、`model` `minimax/MiniMax-M3`、project 25872、`session.mode=new`、`enabled=true`、task_id 全部不变。
+  **安全流程（本次实践，13K/14K prompt 零手打）**：`cron_read view=list` 的落盘 artifact 取回**服务器原样字节**作基准 → 本地模板化 `.replace()`（锚点断言命中恰好 1 次）→ `json.dumps` 机械输出作粘贴源 → 下发 → 再 `cron_read view=list` 落盘 → **逐字节 sha256 比对 + 绑定字段复核**（排期/时区/enabled/agent/model/session/next_run/run_count 全部原样）。改长 prompt 别从 `cron_read` 回显里抄（回显已带一层转义）。
+
 - **2026-10-20 12:50**：原「12:15 素材检索与核实」+「12:45 成文与提交」两段式**合并为一条 12:15 任务**（`lly_ai_news 日报检索·成文·提交`，task_id `454323003904647`）。旧的 `454299158565442`、`454299403952809` 已删除。
   合并动因：两段之间靠 secret gist 交接，多一次写入加一次读取，第二段还要重新装配上下文；合并后单条任务一次跑完，**素材仍落 gist**，作为会话中断后的重跑依据与审计留痕。
   合并时保留的两段硬规则一处不少：去重基线、GitHub 通道走 REST、五条归日规则、归档口径、素材格式、质量标尺、README 五处动态数据、异常处理。
